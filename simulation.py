@@ -39,11 +39,11 @@ def run_gene_drive_model(s: float, c: float, h: float, m: float, alpha: float,
         
         # Calculate mean fitness in each deme
         mean_fitness_1 = (q1_post_migration**2 * (1-s) + 
-                          2 * q1_post_migration * (1-q1_post_migration) * (1-h*s) + 
+                          2 * q1_post_migration * (1-q1_post_migration) * (2*s_n+s_c) + 
                           (1-q1_post_migration)**2)
         
         mean_fitness_2 = (q2_post_migration**2 * (1-s) + 
-                          2 * q2_post_migration * (1-q2_post_migration) * (1-h*s) + 
+                          2 * q2_post_migration * (1-q2_post_migration) * (2*s_n+s_c) + 
                           (1-q2_post_migration)**2)
         
         # Selection phase (calculate frequencies for next generation)
@@ -119,7 +119,7 @@ def plot_dynamics(s: float, c: float, h: float, m: float, alpha: float,
     plt.show()
 
 def plot_alpha_comparison(s: float, c: float, h: float, m: float, 
-                         initial_q1: float = 0.7, initial_q2: float = 0.1) -> None:
+                         initial_q1: float = 0.7, initial_q2: float = 0.001) -> None:
     """Plot a comparison of different alpha values."""
     alpha_values = [0.1, 0.5, 1.0, 2.0, 10.0]
     
@@ -141,13 +141,13 @@ def plot_alpha_comparison(s: float, c: float, h: float, m: float,
 # Example usage:
 if __name__ == "__main__":
     # Example 1: B2 configuration from the paper (Fig. 2)
-    s, c, h = 0.6, 0.8, 0
+    s, c, h = 0.5, 0.6, 0.3
     
     # Test differential targeting with symmetric migration (alpha = 1)
     print("Testing B2 configuration with symmetric migration:")
     m = 0.02
     alpha = 1.0
-    initial_values = [(0.7, 0.1), (0.9, 0.1), (0.6, 0.3)]
+    initial_values = [(0.001, 0.01), (0.5, 0.3), (0.9, 0.1)]
     results_symmetric = test_parameter_set(s, c, h, m, alpha, initial_values)
     
     # Test with asymmetric migration
@@ -156,7 +156,7 @@ if __name__ == "__main__":
     results_asymmetric = test_parameter_set(s, c, h, m, alpha, initial_values)
     
     # Plot dynamics for a specific case with symmetric migration
-    plot_dynamics(s, c, h, m, 1.0, 0.7, 0.1)
+    plot_dynamics(s, c, h, m, 1.0, 0.01, 0.1)
     
     # Plot comparison of different alpha values
     plot_alpha_comparison(s, c, h, m)
