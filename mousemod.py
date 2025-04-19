@@ -1,3 +1,18 @@
+"""
+MouseMod Gene Drive Simulator: Interactive Game-based Visualization
+
+This tool simulates the dynamics of gene drive alleles across two demes (populations)
+using recurrence equations based on Greenbaum et al.'s model. Users can manipulate
+key parameters such as selection, conversion, dominance, and migration via sliders,
+and observe the allele frequencies and population changes through animated mice
+and real-time plotting.
+
+Created with:
+- Pygame for animation and UI
+- Matplotlib for plotting allele frequency dynamics
+- Procreate for drawings by Chloe Zhu and Monica Wan
+"""
+
 import pygame
 import sys
 import random
@@ -8,7 +23,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 # ---------------- Gene Drive Simulation Logic ----------------
-
+# This function updates allele frequencies in both demes for one generation
 def step_gene_drive(q1, q2, s, c, h, m, alpha):
     q1_post = ((1 - alpha*m) * q1 + m * q2) / (1 - alpha*m + m)
     q2_post = ((1 - m) * q2 + alpha*m * q1) / (1 - m + alpha*m)
@@ -21,13 +36,12 @@ def step_gene_drive(q1, q2, s, c, h, m, alpha):
           + 2 * q2_post * (1 - q2_post) * (2*s_n + s_c)
           + (1 - q2_post)**2)
     q1_next = ((q1_post**2 * (1 - s)
-                + 2 * q1_post * (1 - q1_post) * (s_n + s_c))
-               / w1)
+                + 2 * q1_post * (1 - q1_post) * (s_n + s_c)) / w1)
     q2_next = ((q2_post**2 * (1 - s)
-                + 2 * q2_post * (1 - q2_post) * (s_n + s_c))
-               / w2)
+                + 2 * q2_post * (1 - q2_post) * (s_n + s_c)) / w2)
     return q1_next, q2_next
 
+# UI element for controlling simulation parameters interactively
 class Slider:
     def __init__(self, x, y, label, min_val, max_val, init_val):
         self.x, self.y = x, y
@@ -41,11 +55,11 @@ class Slider:
         self.rect = pygame.Rect(x, y, self.w, self.h)
 
     def draw(self, surf, font):
-        pygame.draw.rect(surf, (100,100,100), self.rect)
+        pygame.draw.rect(surf, (100,100,100), self.rect, border_radius=10)
         frac = (self.value - self.min_val) / (self.max_val - self.min_val)
         knob_x = self.x + frac * self.w
         knob_y = self.y + self.h//2
-        pygame.draw.circle(surf, (200,50,50), (int(knob_x), knob_y), self.knob_radius)
+        pygame.draw.circle(surf, (255, 165, 0), (int(knob_x), knob_y), self.knob_radius)
         txt = font.render(f"{self.label}: {self.value:.2f}", True, (20,20,20))
         surf.blit(txt, (self.x, self.y - 25))
 
@@ -63,6 +77,7 @@ class Slider:
             frac = (mx - self.x) / self.w
             self.value = self.min_val + frac * (self.max_val - self.min_val)
 
+# Represents a mouse individual with genotype and visual behavior
 class Mouse:
     def __init__(self, pos, genotype):
         self.pos = list(pos)
@@ -79,12 +94,15 @@ class Mouse:
             self.pos = [nx, ny]
 
 # ---------------- Initialization ----------------
+# Initialize Pygame and create screen, load background
 pygame.init()
 SCREEN_W, SCREEN_H = 1000, 600
-ISLAND_AREA_W = 685
-PLOT_W = SCREEN_W - ISLAND_AREA_W
 screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
 clock = pygame.time.Clock()
+
+# Load background
+background_img = pygame.image.load("images/background.png")
+background_img = pygame.transform.scale(background_img, (SCREEN_W, SCREEN_H))
 
 # Parameters
 s, c, h = 0.5, 0.8, 0.3
@@ -93,33 +111,31 @@ alpha = 1.0
 q1, q2 = 0.7, 0.1
 GENERATION = 0
 
-# Layout
-CENTER1 = (ISLAND_AREA_W//3, SCREEN_H//2)
-CENTER2 = (2*ISLAND_AREA_W//3, SCREEN_H//2)
+CENTER1 = (SCREEN_W//5 - 10, SCREEN_H//2 + 140)
+CENTER2 = (2*SCREEN_W//5, SCREEN_H//2 - 90)
 ISLAND_R = 100
 NUM_MICE = 20
 STEP_DELAY_MS = 100
 last_update_time = pygame.time.get_ticks()
 
-# History for plot
 hist_q1, hist_q2 = [], []
 
-# UI Controls
-sliders = [
-    Slider(30, 480, "s",  0.0, 1.0, s),
-    Slider(240, 480, "c",  0.0, 1.0, c),
-    Slider(450, 480, "h",  0.0, 1.0, h),
-    Slider(30, 530, "m",  0.0, 0.5, m),
-    Slider(240, 530, "q1", 0.0, 1.0, q1),
-    Slider(450, 530, "q2", 0.0, 1.0, q2),
-]
 font = pygame.font.SysFont(None, 26)
-run_button = pygame.Rect(290, 560, 100, 30)
-reset_button = pygame.Rect(420, 560, 100, 30)
+
+# Create interactive sliders for each simulation parameter
+sliders = [
+    Slider(490, 480, "s",  0.0, 1.0, s),
+    Slider(490, 520, "c",  0.0, 1.0, c),
+    Slider(490, 560, "h",  0.0, 1.0, h),
+    Slider(680, 480, "m",  0.0, 0.5, m),
+    Slider(680, 520, "q1", 0.0, 1.0, q1),
+    Slider(680, 560, "q2", 0.0, 1.0, q2),
+]
+run_button = pygame.Rect(860, 470, 100, 40)
+reset_button = pygame.Rect(860, 525, 100, 40)
 auto_run = False
 
-# Initialize mice populations
-
+# Function to randomly generate mice population based on current allele frequency
 def reinit_mice():
     def init(q, center):
         counts = np.random.multinomial(NUM_MICE, [q**2, 2*q*(1-q), (1-q)**2])
@@ -137,8 +153,9 @@ def reinit_mice():
 
 mice1, mice2 = reinit_mice()
 
-# Plot setup
-fig = plt.figure(figsize=(PLOT_W/100, PLOT_W/100), dpi=100)
+# ---------------- Plot Setup ----------------
+# Initialize matplotlib plot for allele frequency over generations
+fig = plt.figure(figsize=(4, 3.8), dpi=85)
 ax = fig.add_subplot(111)
 line1, = ax.plot([], [], label='Deme 1', color='red')
 line2, = ax.plot([], [], label='Deme 2', color='blue')
@@ -150,7 +167,7 @@ ax.set_ylabel("Allele Frequency")
 ax.legend()
 canvas = FigureCanvasAgg(fig)
 
-# Update-genotype helper
+# Update genotypes of mice based on new allele frequencies
 def update_genotypes(mice, q, center):
     counts = np.random.multinomial(NUM_MICE, [q**2, 2*q*(1-q), (1-q)**2])
     gen_list = ['AA']*counts[0] + ['Aa']*counts[1] + ['aa']*counts[2]
@@ -159,7 +176,8 @@ def update_genotypes(mice, q, center):
         mouse.genotype = gt
         mouse.move(center, ISLAND_R)
 
-# ---------------- Main Loop ----------------
+# ---------------- Main Simulation Loop ----------------
+# Handles events, updates simulation, and draws visuals
 while True:
     now = pygame.time.get_ticks()
     for event in pygame.event.get():
@@ -170,17 +188,23 @@ while True:
             if run_button.collidepoint(event.pos):
                 auto_run = not auto_run
             elif reset_button.collidepoint(event.pos):
-                s = sliders[0].value
-                c = sliders[1].value
-                h = sliders[2].value
-                m = sliders[3].value
-                q1 = sliders[4].value
-                q2 = sliders[5].value
+                # Reset to default values
+                s, c, h, m = 0.5, 0.8, 0.3, 0.05
+                q1, q2 = 0.7, 0.1
+                # Reset sliders visually
+                sliders[0].value = s
+                sliders[1].value = c
+                sliders[2].value = h
+                sliders[3].value = m
+                sliders[4].value = q1
+                sliders[5].value = q2
+                # Reset sim state
                 GENERATION = 0
                 hist_q1.clear()
                 hist_q2.clear()
                 mice1, mice2 = reinit_mice()
-                auto_run = True
+                auto_run = False
+
         for sl in sliders:
             sl.handle_event(event)
 
@@ -200,27 +224,35 @@ while True:
             update_genotypes(mice2, q2, CENTER2)
             last_update_time = now
 
-    # Draw
-    screen.fill((245,245,220))
-    pygame.draw.circle(screen, (130,200,130), CENTER1, ISLAND_R)
-    pygame.draw.circle(screen, (130,200,130), CENTER2, ISLAND_R)
+    screen.blit(background_img, (0, 0))
     for m_obj in mice1 + mice2:
         m_obj.draw(screen)
-    pygame.draw.rect(screen, (70,130,180), run_button)
-    pygame.draw.rect(screen, (70,130,180), reset_button)
-    screen.blit(font.render("Run" if not auto_run else "Pause", True, (255,255,255)), (run_button.x+10, run_button.y+5))
-    screen.blit(font.render("Reset", True, (255,255,255)), (reset_button.x+20, reset_button.y+5))
-    for sl in sliders: sl.draw(screen, font)
-    screen.blit(font.render(f"Gen: {GENERATION}   q1={q1:.3f}   q2={q2:.3f}", True, (20,20,20)), (20,20))
 
-    # Plot
+    # Draw Run and Reset buttons
+    pygame.draw.rect(screen, (135,169,107), run_button, border_radius=10)
+    pygame.draw.rect(screen, (135,169,107), reset_button, border_radius=10)
+    run_text = font.render("Run" if not auto_run else "Pause", True, (255,255,255))
+    run_text_rect = run_text.get_rect(center=run_button.center)
+    screen.blit(run_text, run_text_rect)
+    reset_text = font.render("Reset", True, (255,255,255))
+    reset_text_rect = reset_text.get_rect(center=reset_button.center)
+    screen.blit(reset_text, reset_text_rect)
+
+    for sl in sliders:
+        sl.draw(screen, font)
+
+    gen_text = font.render(f"Gen: {GENERATION}   q1={q1:.3f}   q2={q2:.3f}", True, (20,20,20))
+    screen.blit(gen_text, (SCREEN_W - gen_text.get_width() - 20, 20))
+
     ax.set_xlim(0, max(100, GENERATION))
     line1.set_data(range(len(hist_q1)), hist_q1)
     line2.set_data(range(len(hist_q2)), hist_q2)
     canvas.draw()
     raw = canvas.get_renderer().tostring_rgb()
     surf = pygame.image.fromstring(raw, canvas.get_width_height(), "RGB")
-    screen.blit(surf, (ISLAND_AREA_W, (SCREEN_H - PLOT_W)//2))
+    
+    # Draw the plot
+    screen.blit(surf, (SCREEN_W - surf.get_width(), 60))
 
     pygame.display.flip()
     clock.tick(60)
