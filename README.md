@@ -1,7 +1,7 @@
-# 🧬 Gene Drive Simulator 🐁✨  
+# 🧬 MouseMod: Gene Drive Simulator 🐁✨  
 **An Interactive, Hand-Drawn Exploration of Gene Drive Dynamics**
 
-Welcome to our **Gene Drive Simulator** — a playful yet powerful tool for visualizing how gene drives spread across two populations.
+Welcome to **MouseMod** — a playful yet powerful tool for visualizing how gene drives spread across two populations.
 
 🖌️ Hand-drawn islands.  
 🐁 Adorable mice illustrations.  
@@ -10,9 +10,9 @@ Welcome to our **Gene Drive Simulator** — a playful yet powerful tool for visu
 
 This project blends biology, game design, and art into an **interactive educational experience**. Based on real population genetics research, it helps you explore what happens when a gene drive is released — and what it takes to keep it contained.
 
-👩‍🎨 Made With Love By **Chloe Zhu** and **Monica Wan** -- designers, coders, and artists behind the vision and implementation.
+👩‍🎨 Made With Love By **Chloe Zhu** and **Monica Wan**: designers, coders, and artists behind the vision and implementation.
 
-🙏 Acknowledgements to **Savannah Cheng** and **Camellia Jiang** for their creative input, thoughtful feedback, and support throughout the project.
+🙏 Acknowledgements to **Savannah Cheng** and **Camellia Jiang** for their creative input and thoughtful feedback.
 
 ---
 
