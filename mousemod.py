@@ -196,6 +196,7 @@ while running:
             h = sliders[2].value
             q1 = sliders[3].value
             q2 = sliders[4].value
+            m = sliders[5].value
             GENERATION = 0
             mice1 = initialize_mice(q1, CENTER1)
             mice2 = initialize_mice(q2, CENTER2)
