@@ -14,6 +14,7 @@ Created with:
 """
 
 import pygame
+import math
 import sys
 import random
 import numpy as np
@@ -82,28 +83,41 @@ class Mouse:
     def __init__(self, pos, genotype, group):
         self.pos = list(pos)
         self.genotype = genotype
-        self.group = group  # 1 or 2
+        self.group = group
+        self.migrating = False
+        self.dest = None
+
+    def start_migration(self, dest, new_group):
+        self.dest = dest
+        self.group = new_group
+        # self.migrating = True
 
     def draw(self, surf):
-        # choose image based on group and genotype
-        if self.group == 1:
-            if self.genotype == 'aa': img = g1wt_img
-            elif self.genotype == 'Aa': img = g1ht_img
-            else: img = g1mt_img
-        else:
-            if self.genotype == 'aa': img = g2wt_img
-            elif self.genotype == 'Aa': img = g2ht_img
-            else: img = g2mt_img
-        # center image on mouse position
+        # print("drawing")
+        img = {(1,'aa'): g1wt_img, (1,'Aa'): g1ht_img, (1,'AA'): g1mt_img,
+               (2,'aa'): g2wt_img, (2,'Aa'): g2ht_img, (2,'AA'): g2mt_img}[
+               (self.group, self.genotype)]
         rect = img.get_rect(center=self.pos)
         surf.blit(img, rect)
 
     def move(self, center, radius=100):
+        if self.migrating:
+            dx = self.dest[0] - self.pos[0]
+            dy = self.dest[1] - self.pos[1]
+            dist = math.hypot(dx, dy)
+            speed = 4
+            if dist < speed:
+                self.pos = list(self.dest)
+                self.migrating = False
+            else:
+                self.pos[0] += dx/dist * speed
+                self.pos[1] += dy/dist * speed
+            return
+        # normal random walk
         dx, dy = random.choice([-2,-1,0,1,2]), random.choice([-2,-1,0,1,2])
         nx, ny = self.pos[0]+dx, self.pos[1]+dy
         if (nx-center[0])**2 + (ny-center[1])**2 <= (radius-10)**2:
             self.pos = [nx, ny]
-
 
 # ---------------- Initialization ----------------
 # Initialize Pygame and create screen, load background
@@ -113,28 +127,17 @@ screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
 clock = pygame.time.Clock()
 
 # Load images
+# Background image
 background_img = pygame.image.load("images/background.png")
-# group1 images
-g1wt_img = pygame.image.load("images/Rats/group1_wt.png")
-g1ht_img = pygame.image.load("images/Rats/group1_het.png")
-g1mt_img = pygame.image.load("images/Rats/group1_mutant.png")
-# group2 images
-g2wt_img = pygame.image.load("images/Rats/group2_wt.png")
-g2ht_img = pygame.image.load("images/Rats/group2_het.png")
-g2mt_img = pygame.image.load("images/Rats/group2_mutant.png")
-# scale rat images
-IMG_SZ = 80
-for img in (g1wt_img, g1ht_img, g1mt_img, g2wt_img, g2ht_img, g2mt_img):
-    img = pygame.transform.scale(img, (IMG_SZ, IMG_SZ))
-    # note: transform returns new surface; need to reassign
-# reassign scaled versions
-g1wt_img = pygame.transform.scale(g1wt_img, (IMG_SZ, IMG_SZ))
-g1ht_img = pygame.transform.scale(g1ht_img, (IMG_SZ, IMG_SZ))
-g1mt_img = pygame.transform.scale(g1mt_img, (IMG_SZ, IMG_SZ))
-g2wt_img = pygame.transform.scale(g2wt_img, (IMG_SZ, IMG_SZ))
-g2ht_img = pygame.transform.scale(g2ht_img, (IMG_SZ, IMG_SZ))
-g2mt_img = pygame.transform.scale(g2mt_img, (IMG_SZ, IMG_SZ))
 background_img = pygame.transform.scale(background_img, (SCREEN_W, SCREEN_H))
+# group1 images
+g1wt_img = pygame.image.load("images/Rats/group1_wt_resized.png")
+g1ht_img = pygame.image.load("images/Rats/group1_het_resized.png")
+g1mt_img = pygame.image.load("images/Rats/group1_mutant_resized.png")
+# group2 images
+g2wt_img = pygame.image.load("images/Rats/group2_wt_resized.png")
+g2ht_img = pygame.image.load("images/Rats/group2_het_resized.png")
+g2mt_img = pygame.image.load("images/Rats/group2_mutant_resized.png")
 
 # Parameters
 s, c, h = 0.5, 0.8, 0.3
@@ -144,8 +147,8 @@ q1, q2 = 0.7, 0.1
 GENERATION = 0
 
 CENTER1 = (SCREEN_W//5 - 10, SCREEN_H//2 + 140)
-CENTER2 = (2*SCREEN_W//5, SCREEN_H//2 - 90)
-ISLAND_R = 100
+CENTER2 = (2*SCREEN_W//5 + 20, SCREEN_H//2 - 90)
+ISLAND_R = 130
 NUM_MICE = 20
 STEP_DELAY_MS = 100
 last_update_time = pygame.time.get_ticks()
@@ -181,6 +184,7 @@ def reinit_mice():
             x = int(center[0] + rad*np.cos(ang))
             y = int(center[1] + rad*np.sin(ang))
             arr.append(Mouse((x,y), gt, group_id))
+        print("init mice", arr)
         return arr
     return init(q1, CENTER1, 1), init(q2, CENTER2, 2)
 
@@ -201,11 +205,12 @@ ax.legend()
 canvas = FigureCanvasAgg(fig)
 
 # Update genotypes of mice based on new allele frequencies
-def update_genotypes(mice, q, center):
+# Update genotypes
+def update_genotypes(mice, q, center, group_id):
     counts = np.random.multinomial(NUM_MICE, [q**2, 2*q*(1-q), (1-q)**2])
-    gen_list = ['AA']*counts[0] + ['Aa']*counts[1] + ['aa']*counts[2]
-    random.shuffle(gen_list)
-    for mouse, gt in zip(mice, gen_list):
+    gens = ['AA']*counts[0] + ['Aa']*counts[1] + ['aa']*counts[2]
+    random.shuffle(gens)
+    for mouse, gt in zip(mice, gens):
         mouse.genotype = gt
         mouse.move(center, ISLAND_R)
 
@@ -248,6 +253,7 @@ while True:
             sl.handle_event(event)
 
     if auto_run and now - last_update_time >= STEP_DELAY_MS:
+        
         q1_next, q2_next = step_gene_drive(q1, q2, s, c, h, m, alpha)
         if abs(q1 - q1_next) < 1e-6 and abs(q2 - q2_next) < 1e-6:
             auto_run = False
@@ -259,13 +265,32 @@ while True:
             if len(hist_q1) > 100:
                 hist_q1.pop(0)
                 hist_q2.pop(0)
-            update_genotypes(mice1, q1, CENTER1)
-            update_genotypes(mice2, q2, CENTER2)
+            # migration: mark migrants
+            n_mig = int(round(m * NUM_MICE))
+            if n_mig > 0:
+                print("migration")
+                migrants1 = random.sample(mice1, n_mig)
+                for mouse in migrants1:
+                    mice1.remove(mouse)
+                    mice2.append(mouse)
+                    mouse.start_migration(CENTER2, 2)
+                migrants2 = random.sample(mice2, n_mig)
+                for mouse in migrants2:
+                    mice2.remove(mouse)
+                    mice1.append(mouse)
+                    mouse.start_migration(CENTER1, 1)
+            # update genotypes after migration
+            update_genotypes(mice1, q1, CENTER1, 1)
+            update_genotypes(mice2, q2, CENTER2, 2)
             last_update_time = now
-
     screen.blit(background_img, (0, 0))
-    for m_obj in mice1 + mice2:
-        m_obj.draw(screen)
+    # pygame.draw.circle(screen, (130,200,130), CENTER1, ISLAND_R)
+    # pygame.draw.circle(screen, (130,200,130), CENTER2, ISLAND_R)
+
+    # 2) then move & draw mice on top
+    for m in mice1 + mice2:
+        m.move(CENTER1 if m.group==1 else CENTER2)
+        m.draw(screen)
 
     # Draw Run and Reset buttons
     pygame.draw.rect(screen, (135,169,107), run_button, border_radius=10)
