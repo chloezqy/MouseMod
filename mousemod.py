@@ -93,7 +93,6 @@ class Mouse:
         # self.migrating = True
 
     def draw(self, surf):
-        # print("drawing")
         img = {(1,'aa'): g1wt_img, (1,'Aa'): g1ht_img, (1,'AA'): g1mt_img,
                (2,'aa'): g2wt_img, (2,'Aa'): g2ht_img, (2,'AA'): g2mt_img}[
                (self.group, self.genotype)]
@@ -184,7 +183,6 @@ def reinit_mice():
             x = int(center[0] + rad*np.cos(ang))
             y = int(center[1] + rad*np.sin(ang))
             arr.append(Mouse((x,y), gt, group_id))
-        print("init mice", arr)
         return arr
     return init(q1, CENTER1, 1), init(q2, CENTER2, 2)
 
@@ -268,7 +266,6 @@ while True:
             # migration: mark migrants
             n_mig = int(round(m * NUM_MICE))
             if n_mig > 0:
-                print("migration")
                 migrants1 = random.sample(mice1, n_mig)
                 for mouse in migrants1:
                     mice1.remove(mouse)
@@ -287,9 +284,10 @@ while True:
     # pygame.draw.circle(screen, (130,200,130), CENTER1, ISLAND_R)
     # pygame.draw.circle(screen, (130,200,130), CENTER2, ISLAND_R)
 
-    # 2) then move & draw mice on top
+    # Move & draw mice on top
     for m in mice1 + mice2:
-        m.move(CENTER1 if m.group==1 else CENTER2)
+        if auto_run:
+            m.move(CENTER1 if m.group==1 else CENTER2)
         m.draw(screen)
 
     # Draw Run and Reset buttons
