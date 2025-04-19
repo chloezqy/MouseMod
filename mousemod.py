@@ -103,6 +103,55 @@ class Mouse:
         if (new_x - center[0])**2 + (new_y - center[1])**2 <= (ISLAND_RADIUS - 10)**2:
             self.pos[0], self.pos[1] = new_x, new_y
 
+# Slider class
+class Slider:
+    def __init__(self, x, y, label, min_val, max_val, init_val):
+        self.x = x
+        self.y = y
+        self.w = 150
+        self.h = 6
+        self.knob_radius = 10
+        self.label = label
+        self.min_val = min_val
+        self.max_val = max_val
+        self.value = init_val
+        self.dragging = False
+        self.slider_rect = pygame.Rect(x, y, self.w, self.h)
+
+    def draw(self, surface):
+        # Draw line
+        pygame.draw.rect(surface, (100, 100, 100), self.slider_rect)
+        # Position of knob
+        knob_x = self.x + (self.value - self.min_val) / (self.max_val - self.min_val) * self.w
+        pygame.draw.circle(surface, (200, 50, 50), (int(knob_x), self.y + self.h // 2), self.knob_radius)
+        # Label
+        label_surf = defont.render(f"{self.label}: {self.value:.2f}", True, (0, 0, 0))
+        surface.blit(label_surf, (self.x, self.y - 25))
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            knob_x = self.x + (self.value - self.min_val) / (self.max_val - self.min_val) * self.w
+            if abs(event.pos[0] - knob_x) < self.knob_radius + 5 and abs(event.pos[1] - (self.y + self.h // 2)) < self.knob_radius + 5:
+                self.dragging = True
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.dragging = False
+        elif event.type == pygame.MOUSEMOTION and self.dragging:
+            rel_x = max(self.x, min(event.pos[0], self.x + self.w))
+            percent = (rel_x - self.x) / self.w
+            self.value = self.min_val + percent * (self.max_val - self.min_val)
+
+# Create sliders
+sliders = [
+    Slider(50, 480, "s", 0.0, 1.0, s),
+    Slider(50, 530, "c", 0.0, 1.0, c),
+    Slider(250, 480, "h", 0.0, 1.0, h),
+    Slider(250, 530, "q1", 0.0, 1.0, q1),
+    Slider(450, 480, "q2", 0.0, 1.0, q2),
+]
+
+# Reset button
+reset_button = pygame.Rect(700, 500, 150, 40)
+
 
 def initialize_mice(q, center):
     """
@@ -139,6 +188,18 @@ while running:
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if button_rect.collidepoint(event.pos):
                 auto_run = not auto_run
+        for slider in sliders:
+            slider.handle_event(event)
+        if reset_button.collidepoint(pygame.mouse.get_pos()) and event.type == pygame.MOUSEBUTTONDOWN:
+            s = sliders[0].value
+            c = sliders[1].value
+            h = sliders[2].value
+            q1 = sliders[3].value
+            q2 = sliders[4].value
+            GENERATION = 0
+            mice1 = initialize_mice(q1, CENTER1)
+            mice2 = initialize_mice(q2, CENTER2)
+
 
     # Update simulation at fixed time intervals
     if auto_run and current_time - last_update_time >= STEP_DELAY_MS:
@@ -184,6 +245,16 @@ while running:
     info = f"Gen: {GENERATION}   q1={q1:.2f}   q2={q2:.2f}"
     info_surf = defont.render(info, True, TEXT_COLOR)
     screen.blit(info_surf, (20, 20))
+
+    # Draw sliders
+    for slider in sliders:
+        slider.draw(screen)
+
+    # Draw reset button
+    pygame.draw.rect(screen, BUTTON_COLOR, reset_button)
+    reset_txt = defont.render("Reset", True, BUTTON_TEXT)
+    screen.blit(reset_txt, (reset_button.x + 40, reset_button.y + 10))
+
 
     pygame.display.flip()
     clock.tick(60)
