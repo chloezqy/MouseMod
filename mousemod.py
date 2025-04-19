@@ -79,19 +79,31 @@ class Slider:
 
 # Represents a mouse individual with genotype and visual behavior
 class Mouse:
-    def __init__(self, pos, genotype):
+    def __init__(self, pos, genotype, group):
         self.pos = list(pos)
         self.genotype = genotype
+        self.group = group  # 1 or 2
 
     def draw(self, surf):
-        cmap = {'aa':(150,150,150), 'Aa':(255,180,50), 'AA':(200,30,30)}
-        pygame.draw.circle(surf, cmap[self.genotype], self.pos, 8)
+        # choose image based on group and genotype
+        if self.group == 1:
+            if self.genotype == 'aa': img = g1wt_img
+            elif self.genotype == 'Aa': img = g1ht_img
+            else: img = g1mt_img
+        else:
+            if self.genotype == 'aa': img = g2wt_img
+            elif self.genotype == 'Aa': img = g2ht_img
+            else: img = g2mt_img
+        # center image on mouse position
+        rect = img.get_rect(center=self.pos)
+        surf.blit(img, rect)
 
     def move(self, center, radius=100):
         dx, dy = random.choice([-2,-1,0,1,2]), random.choice([-2,-1,0,1,2])
         nx, ny = self.pos[0]+dx, self.pos[1]+dy
         if (nx-center[0])**2 + (ny-center[1])**2 <= (radius-10)**2:
             self.pos = [nx, ny]
+
 
 # ---------------- Initialization ----------------
 # Initialize Pygame and create screen, load background
@@ -100,8 +112,28 @@ SCREEN_W, SCREEN_H = 1000, 600
 screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
 clock = pygame.time.Clock()
 
-# Load background
+# Load images
 background_img = pygame.image.load("images/background.png")
+# group1 images
+g1wt_img = pygame.image.load("images/Rats/group1_wt.png")
+g1ht_img = pygame.image.load("images/Rats/group1_het.png")
+g1mt_img = pygame.image.load("images/Rats/group1_mutant.png")
+# group2 images
+g2wt_img = pygame.image.load("images/Rats/group2_wt.png")
+g2ht_img = pygame.image.load("images/Rats/group2_het.png")
+g2mt_img = pygame.image.load("images/Rats/group2_mutant.png")
+# scale rat images
+IMG_SZ = 80
+for img in (g1wt_img, g1ht_img, g1mt_img, g2wt_img, g2ht_img, g2mt_img):
+    img = pygame.transform.scale(img, (IMG_SZ, IMG_SZ))
+    # note: transform returns new surface; need to reassign
+# reassign scaled versions
+g1wt_img = pygame.transform.scale(g1wt_img, (IMG_SZ, IMG_SZ))
+g1ht_img = pygame.transform.scale(g1ht_img, (IMG_SZ, IMG_SZ))
+g1mt_img = pygame.transform.scale(g1mt_img, (IMG_SZ, IMG_SZ))
+g2wt_img = pygame.transform.scale(g2wt_img, (IMG_SZ, IMG_SZ))
+g2ht_img = pygame.transform.scale(g2ht_img, (IMG_SZ, IMG_SZ))
+g2mt_img = pygame.transform.scale(g2mt_img, (IMG_SZ, IMG_SZ))
 background_img = pygame.transform.scale(background_img, (SCREEN_W, SCREEN_H))
 
 # Parameters
@@ -136,8 +168,9 @@ reset_button = pygame.Rect(860, 525, 100, 40)
 auto_run = False
 
 # Function to randomly generate mice population based on current allele frequency
+# Initialize mice populations
 def reinit_mice():
-    def init(q, center):
+    def init(q, center, group_id):
         counts = np.random.multinomial(NUM_MICE, [q**2, 2*q*(1-q), (1-q)**2])
         gens = ['AA']*counts[0] + ['Aa']*counts[1] + ['aa']*counts[2]
         random.shuffle(gens)
@@ -147,9 +180,9 @@ def reinit_mice():
             rad = random.uniform(0, ISLAND_R-15)
             x = int(center[0] + rad*np.cos(ang))
             y = int(center[1] + rad*np.sin(ang))
-            arr.append(Mouse((x,y), gt))
+            arr.append(Mouse((x,y), gt, group_id))
         return arr
-    return init(q1, CENTER1), init(q2, CENTER2)
+    return init(q1, CENTER1, 1), init(q2, CENTER2, 2)
 
 mice1, mice2 = reinit_mice()
 
@@ -180,6 +213,12 @@ def update_genotypes(mice, q, center):
 # Handles events, updates simulation, and draws visuals
 while True:
     now = pygame.time.get_ticks()
+    # Read parameter values from sliders each frame
+    s = sliders[0].value
+    c = sliders[1].value
+    h = sliders[2].value
+    m = sliders[3].value
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
